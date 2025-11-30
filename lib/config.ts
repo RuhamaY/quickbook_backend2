@@ -11,7 +11,7 @@ function getEnv(key: string, defaultValue: string = ""): string {
 }
 
 // Public env vars (available on client and server)
-export const REDIRECT_URI = getEnv("NEXT_PUBLIC_REDIRECT_URI", "https://localhost:3000/auth/callback");
+export const REDIRECT_URI = getEnv("NEXT_PUBLIC_REDIRECT_URI", "https://quickbook-backend-eta.vercel.app/auth/callback");
 export const SCOPE = "com.intuit.quickbooks.accounting";
 export const AUTH_BASE_URL = "https://appcenter.intuit.com/connect/oauth2";
 export const TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";

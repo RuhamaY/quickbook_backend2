@@ -11,11 +11,11 @@ export const swaggerSpec = {
   },
   servers: [
     {
-      url: "https://localhost:3000",
+      url: "https://quickbook-backend-eta.vercel.app",
       description: "Development server (HTTPS)",
     },
     {
-      url: "http://localhost:3000",
+      url: "https://quickbook-backend-eta.vercel.app",
       description: "Development server (HTTP - not recommended)",
     },
   ],
