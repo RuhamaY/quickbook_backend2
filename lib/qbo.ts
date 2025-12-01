@@ -14,7 +14,7 @@ export async function exchangeCodeForTokens(code: string): Promise<Tokens> {
   console.log("🟡 [TOKEN EXCHANGE] CLIENT_SECRET:", clientSecret ? "***SET***" : "MISSING");
   console.log("🟡 [TOKEN EXCHANGE] Code length:", code.length);
   
-  const redirectUri = process.env.NEXT_PUBLIC_REDIRECT_URI || "https://quickbook-backend-eta.vercel.app/auth/callback";
+  const redirectUri = process.env.NEXT_PUBLIC_REDIRECT_URI || "https://quickbook-backend-eta.vercel.app/api/auth/callback";
   console.log("🟡 [TOKEN EXCHANGE] Redirect URI:", redirectUri);
 
   if (!clientId || !clientSecret) {
