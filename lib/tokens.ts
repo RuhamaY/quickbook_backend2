@@ -4,8 +4,18 @@ import { join } from "path";
 import type { Tokens } from "@/types/models";
 import { TOKENS_FILE } from "./config";
 
+function getTokensFilePath() {
+  // In production (Vercel), use /tmp (writable but ephemeral)
+  if (process.env.NODE_ENV === "production") {
+    return "/tmp/qb-tokens.json";
+  }
+
+  // In local dev, keep using project root + TOKENS_FILE
+  return join(process.cwd(), TOKENS_FILE);
+}
+
 export async function saveTokens(tokens: Tokens): Promise<void> {
-  const filePath = join(process.cwd(), TOKENS_FILE);
+  const filePath = getTokensFilePath();
   console.log("💾 [SAVE TOKENS] Saving tokens to:", filePath);
   console.log("💾 [SAVE TOKENS] Token keys:", Object.keys(tokens));
   await fs.writeFile(filePath, JSON.stringify(tokens, null, 2), "utf-8");
@@ -21,6 +31,7 @@ export async function loadTokens(): Promise<Tokens | null> {
     return null;
   }
 }
+
 
 export function basicAuthHeader(clientId: string, clientSecret: string): string {
   const creds = `${clientId}:${clientSecret}`;
