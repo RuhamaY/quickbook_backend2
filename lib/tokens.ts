@@ -5,15 +5,15 @@ import type { Tokens } from "@/types/models";
 import { TOKENS_FILE } from "./config";
 import { createSupabaseClient } from "./supabase";
 
-// Check if Supabase is configured
+// Always use ONLY server env vars for backend Supabase
 function isSupabaseConfigured(): boolean {
-  return !!(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.SUPABASE_URL
-  ) && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
 }
 
-// Supabase-based token storage (for serverless/production)
+// Use a fixed UUID for the single QuickBooks connection row
+const QB_TOKEN_ROW_ID = "00000000-0000-0000-0000-000000000001";
+
+// Supabase-based token storage
 async function saveTokensToSupabase(tokens: Tokens): Promise<void> {
   try {
     const supabase = createSupabaseClient();
@@ -21,8 +21,8 @@ async function saveTokensToSupabase(tokens: Tokens): Promise<void> {
       .from("qb_tokens")
       .upsert(
         {
-          id: 1, // Single row for single QuickBooks connection
-          tokens: tokens,
+          id: QB_TOKEN_ROW_ID,
+          tokens,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "id" }
@@ -32,9 +32,10 @@ async function saveTokensToSupabase(tokens: Tokens): Promise<void> {
       console.error("❌ [SAVE TOKENS] Supabase error:", error);
       throw error;
     }
-    console.log("✅ [SAVE TOKENS] Tokens saved to Supabase successfully");
-  } catch (error: any) {
-    console.error("❌ [SAVE TOKENS] Failed to save to Supabase:", error);
+
+    console.log("✅ [SAVE TOKENS] Tokens saved to Supabase");
+  } catch (error) {
+    console.error("❌ [SAVE TOKENS] Failed:", error);
     throw error;
   }
 }
@@ -45,106 +46,62 @@ async function loadTokensFromSupabase(): Promise<Tokens | null> {
     const { data, error } = await supabase
       .from("qb_tokens")
       .select("tokens")
-      .eq("id", 1)
+      .eq("id", QB_TOKEN_ROW_ID)
       .single();
 
     if (error) {
-      if (error.code === "PGRST116") {
-        // No rows returned
-        console.log("ℹ️  [LOAD TOKENS] No tokens found in Supabase");
-        return null;
-      }
-      console.error("❌ [LOAD TOKENS] Supabase error:", error);
+      console.log("ℹ️ [LOAD TOKENS] No tokens found in DB:", error.message);
       return null;
     }
 
-    return data?.tokens as Tokens | null;
-  } catch (error: any) {
-    console.error("❌ [LOAD TOKENS] Failed to load from Supabase:", error);
+    return data?.tokens || null;
+  } catch (error) {
+    console.error("❌ [LOAD TOKENS] Failed:", error);
     return null;
   }
 }
 
-// File-based token storage (fallback for local development)
+// File fallback for local dev
 function getTokensFilePath() {
-  // In production (Vercel), use /tmp (writable but ephemeral)
-  if (process.env.NODE_ENV === "production") {
-    return "/tmp/qb-tokens.json";
-  }
-
-  // In local dev, keep using project root + TOKENS_FILE
+  if (process.env.NODE_ENV === "production") return "/tmp/qb-tokens.json";
   return join(process.cwd(), TOKENS_FILE);
 }
 
 async function saveTokensToFile(tokens: Tokens): Promise<void> {
   const filePath = getTokensFilePath();
-  console.log("💾 [SAVE TOKENS] Saving tokens to file:", filePath);
-  console.log("💾 [SAVE TOKENS] Token keys:", Object.keys(tokens));
-  await fs.writeFile(filePath, JSON.stringify(tokens, null, 2), "utf-8");
-  console.log("✅ [SAVE TOKENS] Tokens saved to file successfully");
+  await fs.writeFile(filePath, JSON.stringify(tokens, null, 2));
+  console.log("💾 [LOCAL] Tokens saved to file");
 }
 
 async function loadTokensFromFile(): Promise<Tokens | null> {
   try {
     const filePath = getTokensFilePath();
-    const data = await fs.readFile(filePath, "utf-8");
-    return JSON.parse(data) as Tokens;
-  } catch (error) {
+    return JSON.parse(await fs.readFile(filePath, "utf8"));
+  } catch {
     return null;
   }
 }
 
-// Main functions that use Supabase if available, otherwise fall back to file system
+// Public API
 export async function saveTokens(tokens: Tokens): Promise<void> {
-  console.log("💾 [SAVE TOKENS] Saving tokens...");
-  console.log("💾 [SAVE TOKENS] Token keys:", Object.keys(tokens));
-
-  if (isSupabaseConfigured()) {
-    console.log("💾 [SAVE TOKENS] Using Supabase storage");
-    await saveTokensToSupabase(tokens);
-  } else {
-    console.log("💾 [SAVE TOKENS] Using file system storage (Supabase not configured)");
-    await saveTokensToFile(tokens);
-  }
+  if (isSupabaseConfigured()) return saveTokensToSupabase(tokens);
+  return saveTokensToFile(tokens);
 }
 
 export async function loadTokens(): Promise<Tokens | null> {
-  if (isSupabaseConfigured()) {
-    console.log("📂 [LOAD TOKENS] Loading from Supabase...");
-    return await loadTokensFromSupabase();
-  } else {
-    console.log("📂 [LOAD TOKENS] Loading from file system...");
-    return await loadTokensFromFile();
-  }
+  if (isSupabaseConfigured()) return loadTokensFromSupabase();
+  return loadTokensFromFile();
 }
 
-
 export function basicAuthHeader(clientId: string, clientSecret: string): string {
-  const creds = `${clientId}:${clientSecret}`;
-  return Buffer.from(creds).toString("base64");
+  return Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 }
 
 export async function ensureTokens(): Promise<Tokens> {
-  console.log("🔷 [ENSURE TOKENS] Loading tokens...");
   const tokens = await loadTokens();
-  
-  if (!tokens) {
-    console.error("❌ [ENSURE TOKENS] No tokens found");
-    throw new Error("Not authorized yet. Hit /auth/start first.");
-  }
-  
-  console.log("🔷 [ENSURE TOKENS] Tokens loaded, checking required fields...");
-  console.log("🔷 [ENSURE TOKENS] Has access_token:", !!tokens.access_token);
-  console.log("🔷 [ENSURE TOKENS] Has realm_id:", !!tokens.realm_id);
-  console.log("🔷 [ENSURE TOKENS] Has refresh_token:", !!tokens.refresh_token);
-  
-  if (!tokens.access_token || !tokens.realm_id) {
-    console.error("❌ [ENSURE TOKENS] Missing required fields");
-    console.error("❌ [ENSURE TOKENS] Token keys:", Object.keys(tokens));
-    throw new Error("Tokens missing access_token or realm_id. Re-auth at /auth/start.");
-  }
-  
-  console.log("✅ [ENSURE TOKENS] Tokens validated successfully");
+  if (!tokens) throw new Error("Not authorized yet. Visit /auth/start");
+  if (!tokens.access_token || !tokens.realm_id)
+    throw new Error("Tokens missing critical fields");
+
   return tokens;
 }
-
