@@ -29,7 +29,7 @@ export interface TransactionData {
     account?: string;
     account_id?: string;
   }>;
-  quickbooksPayload?: Record<string, any>; // kept for debugging, not used to POST
+  quickbooksPayload?: Record<string, any>;
   [key: string]: any;
 }
 
@@ -122,11 +122,9 @@ export async function resolveAccountIdFromName(
   console.log("🔍 [RESOLVE ACCOUNT] Looking for account:", accountName);
   const tokens = await ensureTokens();
 
-  // Clean up account name (remove "Expense" suffix if present, handle "ExpensesExpense" pattern)
   let cleanName = accountName.replace(/Expenses?Expense$/, "").trim();
   cleanName = cleanName.replace(/Expense$/, "").trim();
 
-  // Try exact match first
   let where = `Name = '${cleanName.replace(/'/g, "''")}'`;
   let sql = `select * from Account where ${where} startposition 1 maxresults 1`;
 
@@ -138,15 +136,14 @@ export async function resolveAccountIdFromName(
   }
 
   try {
-    const data = await resp.json();
-    const accounts = data?.QueryResponse?.Account || [];
+    let data = await resp.json();
+    let accounts = data?.QueryResponse?.Account || [];
     if (accounts.length > 0) {
       const accountId = accounts[0].Id || "";
       console.log("✅ [RESOLVE ACCOUNT] Found account with ID:", accountId);
       return accountId;
     }
 
-    // Try with "like" query if exact match fails (handles variations)
     console.log("🔄 [RESOLVE ACCOUNT] Exact match failed, trying like query...");
     where = `Name like '${cleanName.replace(/'/g, "''")}%'`;
     sql = `select * from Account where ${where} startposition 1 maxresults 1`;
@@ -175,17 +172,21 @@ export async function resolveAccountIdFromName(
 
 /**
  * Finds a payment account (Cash, Bank, Credit Card) for Purchase transactions
- * Returns the first available payment account ID
  */
 export async function findPaymentAccount(): Promise<string> {
   console.log("🔍 [FIND PAYMENT ACCOUNT] Looking for payment account...");
   const tokens = await ensureTokens();
 
-  // Query for payment accounts: Bank, Other Current Asset (for Cash), Credit Card
-  const sql = `select Id, Name, AccountType, AccountSubType from Account 
+  const sql = `
+    select Id, Name, AccountType, AccountSubType from Account
     where (AccountType = 'Bank' or AccountType = 'Other Current Asset' or AccountType = 'Credit Card')
-    and (Name = 'Cash' or Name like 'Cash%' or Name = 'Checking' or Name like 'Checking%' or Name = 'Bank' or Name like 'Bank%')
-    startposition 1 maxresults 10`;
+      and (
+        Name = 'Cash' or Name like 'Cash%' or
+        Name = 'Checking' or Name like 'Checking%' or
+        Name = 'Bank' or Name like 'Bank%'
+      )
+    startposition 1 maxresults 10
+  `;
 
   const resp = await withRefresh(qboQuery, tokens, sql);
 
@@ -227,7 +228,6 @@ export async function findPaymentAccount(): Promise<string> {
       return "";
     }
 
-    // Prefer Cash, then Checking, then Bank
     const preferredOrder = ["Cash", "Checking", "Bank"];
     for (const preferred of preferredOrder) {
       const found = accounts.find(
@@ -245,7 +245,6 @@ export async function findPaymentAccount(): Promise<string> {
       }
     }
 
-    // Return first available
     const accountId = accounts[0].Id || "";
     console.log(
       "✅ [FIND PAYMENT ACCOUNT] Found payment account:",
@@ -261,7 +260,6 @@ export async function findPaymentAccount(): Promise<string> {
 
 /**
  * Organizes and validates transaction data from SmythOS
- * Returns both organized data and (optional) raw quickbooks_payload for debugging
  */
 export async function organizeTransactionData(smythosData: any): Promise<{
   transaction: TransactionData;
@@ -271,9 +269,8 @@ export async function organizeTransactionData(smythosData: any): Promise<{
   console.log("🔄 [ORGANIZE] Input keys:", Object.keys(smythosData));
 
   let transactionJson: any = null;
-  let quickbooksPayload: Record<string, any> | undefined = undefined;
+  let quickbooksPayload: Record<string, any> | undefined;
 
-  // Try to extract transaction_json from nested structure
   if (smythosData.result?.Output?.transaction_data?.transaction_json) {
     const jsonString = smythosData.result.Output.transaction_data.transaction_json;
     console.log("🔄 [ORGANIZE] Found transaction_json in nested structure");
@@ -297,7 +294,6 @@ export async function organizeTransactionData(smythosData: any): Promise<{
     }
   }
 
-  // Fallback: structured_data or raw
   let transactionData: any = transactionJson || smythosData;
 
   if (!transactionJson && smythosData.structured_data) {
@@ -353,7 +349,6 @@ export async function organizeTransactionData(smythosData: any): Promise<{
     line_items: transactionData.line_items || transactionData.items || [],
   };
 
-  // Validate required fields
   if (!organized.vendor_name) {
     if (quickbooksPayload?.VendorRef?.name) {
       organized.vendor_name = quickbooksPayload.VendorRef.name;
@@ -399,14 +394,13 @@ export async function organizeTransactionData(smythosData: any): Promise<{
   console.log("🔄 [ORGANIZE] Category:", organized.category);
   console.log("🔄 [ORGANIZE] Has quickbooks_payload:", !!quickbooksPayload);
 
-  // We return quickbooksPayload for debugging, but we won't POST it directly to QBO.
   return {
     transaction: organized,
     quickbooksPayload,
   };
 }
 
-// Normalize payment type into QBO-accepted values
+// Normalize payment type
 function normalizePaymentType(raw?: string): "Cash" | "Check" | "CreditCard" {
   const v = (raw || "").toLowerCase();
   if (v.includes("check")) return "Check";
@@ -415,8 +409,7 @@ function normalizePaymentType(raw?: string): "Cash" | "Check" | "CreditCard" {
 }
 
 /**
- * Builds a clean QuickBooks Purchase payload from normalized transaction data.
- * We DO NOT trust or reuse the agent's quickbooks_payload structure here.
+ * Builds a clean QuickBooks Purchase payload
  */
 export async function buildQboPurchaseFromTransaction(
   transaction: TransactionData,
@@ -432,7 +425,6 @@ export async function buildQboPurchaseFromTransaction(
     throw new Error("Expense Account ID is required to create a QuickBooks Purchase");
   }
 
-  // Resolve expense account ID from transaction if it specified a nicer account name
   let accountIdToUse = expenseAccountId;
 
   if (transaction.account && !transaction.account_id) {
@@ -449,7 +441,6 @@ export async function buildQboPurchaseFromTransaction(
     accountIdToUse = transaction.account_id;
   }
 
-  // Build line items
   const lineItems: any[] = [];
   if (transaction.line_items && transaction.line_items.length > 0) {
     for (const item of transaction.line_items) {
@@ -474,7 +465,6 @@ export async function buildQboPurchaseFromTransaction(
       });
     }
   } else {
-    // Single-line fallback
     lineItems.push({
       DetailType: "AccountBasedExpenseLineDetail",
       Amount: transaction.amount || 0,
@@ -487,7 +477,6 @@ export async function buildQboPurchaseFromTransaction(
     });
   }
 
-  // Use configured payment account ID from environment
   const paymentAccountId = getPaymentAccountId();
   if (!paymentAccountId) {
     throw new Error(
@@ -505,7 +494,7 @@ export async function buildQboPurchaseFromTransaction(
       value: paymentAccountId,
     },
     EntityRef: {
-      value: vendorId, // Payee; for Purchase this is EntityRef
+      value: vendorId,
     },
     Line: lineItems,
   };
@@ -514,7 +503,6 @@ export async function buildQboPurchaseFromTransaction(
     purchase.TxnDate = transaction.date;
   }
 
-  // PrivateNote: prefer reference_number, else description
   if (transaction.reference_number) {
     purchase.PrivateNote = `Reference: ${transaction.reference_number}`;
   } else if (transaction.description) {
@@ -530,7 +518,6 @@ export async function buildQboPurchaseFromTransaction(
 
 /**
  * Creates a Purchase transaction in QuickBooks
- * NOTE: This expects a normalized TransactionData, not a raw agent payload.
  */
 export async function createPurchaseInQBO(
   transaction: TransactionData
@@ -549,10 +536,9 @@ export async function createPurchaseInQBO(
     throw new Error("Vendor name is required to create a Purchase");
   }
 
-  // Resolve or create vendor
   let vendorId: string;
   try {
-    vendorId = await resolveVendorIdFromQBO(vendorName, true); // createIfMissing = true
+    vendorId = await resolveVendorIdFromQBO(vendorName, true);
     if (!vendorId) {
       throw new Error("Failed to resolve or create vendor");
     }
@@ -562,7 +548,6 @@ export async function createPurchaseInQBO(
     throw new Error(`Could not resolve or create vendor: ${error.message}`);
   }
 
-  // Build a clean purchase payload from our normalized transaction
   const purchasePayload = await buildQboPurchaseFromTransaction(
     transaction,
     vendorId,

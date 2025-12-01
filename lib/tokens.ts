@@ -5,12 +5,13 @@ import type { Tokens } from "@/types/models";
 import { TOKENS_FILE } from "./config";
 import { createSupabaseClient } from "./supabase";
 
-// Always use ONLY server env vars for backend Supabase
+// Use server-side env vars; URL can be public, key is server-only
 function isSupabaseConfigured(): boolean {
-  return !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return !!url && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
 }
 
-// Use a fixed UUID for the single QuickBooks connection row
+// Fixed UUID primary key for single QuickBooks connection
 const QB_TOKEN_ROW_ID = "00000000-0000-0000-0000-000000000001";
 
 // Supabase-based token storage
@@ -54,7 +55,7 @@ async function loadTokensFromSupabase(): Promise<Tokens | null> {
       return null;
     }
 
-    return data?.tokens || null;
+    return (data?.tokens as Tokens) || null;
   } catch (error) {
     console.error("❌ [LOAD TOKENS] Failed:", error);
     return null;
@@ -69,14 +70,15 @@ function getTokensFilePath() {
 
 async function saveTokensToFile(tokens: Tokens): Promise<void> {
   const filePath = getTokensFilePath();
-  await fs.writeFile(filePath, JSON.stringify(tokens, null, 2));
-  console.log("💾 [LOCAL] Tokens saved to file");
+  await fs.writeFile(filePath, JSON.stringify(tokens, null, 2), "utf8");
+  console.log("💾 [LOCAL] Tokens saved to file:", filePath);
 }
 
 async function loadTokensFromFile(): Promise<Tokens | null> {
   try {
     const filePath = getTokensFilePath();
-    return JSON.parse(await fs.readFile(filePath, "utf8"));
+    const raw = await fs.readFile(filePath, "utf8");
+    return JSON.parse(raw) as Tokens;
   } catch {
     return null;
   }
@@ -100,8 +102,10 @@ export function basicAuthHeader(clientId: string, clientSecret: string): string 
 export async function ensureTokens(): Promise<Tokens> {
   const tokens = await loadTokens();
   if (!tokens) throw new Error("Not authorized yet. Visit /auth/start");
-  if (!tokens.access_token || !tokens.realm_id)
-    throw new Error("Tokens missing critical fields");
+
+  if (!tokens.access_token || !tokens.realm_id) {
+    throw new Error("Tokens missing critical fields (access_token or realm_id)");
+  }
 
   return tokens;
 }

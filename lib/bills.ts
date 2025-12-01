@@ -31,7 +31,7 @@ export async function createVendorInQBO(vendorName: string): Promise<string> {
     const data = await resp.json();
     const vendor = data.Vendor || data.vendor || {};
     const vendorId = vendor.Id;
-    
+
     if (!vendorId) {
       throw new Error("Vendor created but no ID returned");
     }
@@ -57,11 +57,12 @@ export async function resolveVendorIdFromQBO(
 
   console.log("🔍 [RESOLVE VENDOR] Looking for vendor:", vendorName);
   const tokens = await ensureTokens();
+
   const where = `DisplayName = '${vendorName.replace(/'/g, "''")}'`; // Escape single quotes for SQL
   const sql = `select * from Vendor where ${where} startposition 1 maxresults 1`;
 
   const resp = await withRefresh(qboQuery, tokens, sql);
-  
+
   if (!resp.ok) {
     console.error("❌ [RESOLVE VENDOR] Query failed:", resp.status);
     if (createIfNotFound) {

@@ -190,7 +190,10 @@ export async function updatePurchaseOrExpenseCategory(
     }
   }
 
-  console.log("🔄 [UPDATE CATEGORY] Update payload:", JSON.stringify(updatePayload, null, 2));
+  console.log(
+    "🔄 [UPDATE CATEGORY] Update payload:",
+    JSON.stringify(updatePayload, null, 2)
+  );
 
   // Update the transaction using POST with operation=update parameter
   const tokens = await ensureTokens();
@@ -204,10 +207,11 @@ export async function updatePurchaseOrExpenseCategory(
       operation: "update", // ONLY operation=update, nothing else
       minorversion: MINOR_VERSION,
     });
-    
-    console.log("🔄 [UPDATE CATEGORY] POST URL:", `${url}?${params.toString()}`);
-    
-    return fetch(`${url}?${params.toString()}`, {
+
+    const fullUrl = `${url}?${params.toString()}`;
+    console.log("🔄 [UPDATE CATEGORY] POST URL:", fullUrl);
+
+    return fetch(fullUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -309,7 +313,7 @@ export async function recategorizeTransaction(
     throw new Error(`Failed to resolve account ID: ${error.message}`);
   }
 
-  // Step 5: Update the transaction (pass the transaction object, not just ID)
+  // Step 5: Update the transaction
   let updatedTransaction: Record<string, any>;
   try {
     updatedTransaction = await updatePurchaseOrExpenseCategory(
@@ -331,4 +335,3 @@ export async function recategorizeTransaction(
     updated_transaction: updatedTransaction,
   };
 }
-

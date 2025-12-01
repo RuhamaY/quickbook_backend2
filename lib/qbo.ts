@@ -7,14 +7,19 @@ export async function exchangeCodeForTokens(code: string): Promise<Tokens> {
   // Read env vars at runtime
   const clientId = getClientId();
   const clientSecret = getClientSecret();
-  
+
   console.log("🟡 [TOKEN EXCHANGE] Starting token exchange...");
   console.log("🟡 [TOKEN EXCHANGE] TOKEN_URL:", TOKEN_URL);
-  console.log("🟡 [TOKEN EXCHANGE] CLIENT_ID:", clientId ? `${clientId.substring(0, 10)}...` : "MISSING");
+  console.log(
+    "🟡 [TOKEN EXCHANGE] CLIENT_ID:",
+    clientId ? `${clientId.substring(0, 10)}...` : "MISSING"
+  );
   console.log("🟡 [TOKEN EXCHANGE] CLIENT_SECRET:", clientSecret ? "***SET***" : "MISSING");
   console.log("🟡 [TOKEN EXCHANGE] Code length:", code.length);
-  
-  const redirectUri = process.env.NEXT_PUBLIC_REDIRECT_URI || "https://quickbook-backend-eta.vercel.app/api/auth/callback";
+
+  const redirectUri =
+    process.env.NEXT_PUBLIC_REDIRECT_URI ||
+    "https://quickbook-backend-eta.vercel.app/api/auth/callback";
   console.log("🟡 [TOKEN EXCHANGE] Redirect URI:", redirectUri);
 
   if (!clientId || !clientSecret) {
@@ -48,7 +53,10 @@ export async function exchangeCodeForTokens(code: string): Promise<Tokens> {
     });
 
     console.log("🟡 [TOKEN EXCHANGE] Response status:", response.status);
-    console.log("🟡 [TOKEN EXCHANGE] Response headers:", Object.fromEntries(response.headers.entries()));
+    console.log(
+      "🟡 [TOKEN EXCHANGE] Response headers:",
+      Object.fromEntries(response.headers.entries())
+    );
 
     if (!response.ok) {
       const text = await response.text();
@@ -57,8 +65,12 @@ export async function exchangeCodeForTokens(code: string): Promise<Tokens> {
       throw new Error(`Token exchange failed: ${response.status} ${text}`);
     }
 
-    const tokenData = await response.json();
+    const tokenData = (await response.json()) as Tokens;
     console.log("✅ [TOKEN EXCHANGE] Success! Token keys:", Object.keys(tokenData));
+
+    // Persist tokens immediately
+    await saveTokens(tokenData);
+
     return tokenData;
   } catch (error: any) {
     console.error("❌ [TOKEN EXCHANGE] Exception:", error);
@@ -67,15 +79,17 @@ export async function exchangeCodeForTokens(code: string): Promise<Tokens> {
 }
 
 export async function refreshTokens(refreshToken: string): Promise<Tokens> {
-  // Read env vars at runtime
   const clientId = getClientId();
   const clientSecret = getClientSecret();
-  
+
   console.log("🔄 [TOKEN REFRESH] Starting token refresh...");
   console.log("🔄 [TOKEN REFRESH] Refresh token length:", refreshToken.length);
-  console.log("🔄 [TOKEN REFRESH] CLIENT_ID:", clientId ? `${clientId.substring(0, 10)}...` : "MISSING");
+  console.log(
+    "🔄 [TOKEN REFRESH] CLIENT_ID:",
+    clientId ? `${clientId.substring(0, 10)}...` : "MISSING"
+  );
   console.log("🔄 [TOKEN REFRESH] CLIENT_SECRET:", clientSecret ? "***SET***" : "MISSING");
-  
+
   if (!clientId || !clientSecret) {
     throw new Error("CLIENT_ID or CLIENT_SECRET is missing. Check your .env.local file.");
   }
@@ -108,7 +122,7 @@ export async function refreshTokens(refreshToken: string): Promise<Tokens> {
       throw new Error(`Token refresh failed: ${response.status} ${text}`);
     }
 
-    const tokenData = await response.json();
+    const tokenData = (await response.json()) as Tokens;
     console.log("✅ [TOKEN REFRESH] Success! Token keys:", Object.keys(tokenData));
     return tokenData;
   } catch (error: any) {
@@ -158,7 +172,12 @@ export async function qboQuery(accessToken: string, realmId: string, sql: string
   }
 }
 
-export async function qboGetById(accessToken: string, realmId: string, resource: string, entityId: string) {
+export async function qboGetById(
+  accessToken: string,
+  realmId: string,
+  resource: string,
+  entityId: string
+) {
   const url = `${API_HOST}/v3/company/${realmId}/${resource}/${entityId}`;
   const headers = {
     Authorization: `Bearer ${accessToken}`,
@@ -177,7 +196,12 @@ export async function qboGetById(accessToken: string, realmId: string, resource:
   return response;
 }
 
-export async function qboPost(accessToken: string, realmId: string, resource: string, body: Record<string, any>) {
+export async function qboPost(
+  accessToken: string,
+  realmId: string,
+  resource: string,
+  body: Record<string, any>
+) {
   const url = `${API_HOST}/v3/company/${realmId}/${resource}`;
   const headers = {
     Authorization: `Bearer ${accessToken}`,
@@ -209,7 +233,7 @@ export async function withRefresh(
   console.log("🟣 [WITH REFRESH] Has refresh token:", !!tokens.refresh_token);
 
   let accessToken = tokens.access_token;
-  let realmId = tokens.realm_id!;
+  const realmId = tokens.realm_id!;
 
   let resp = await requestFn(accessToken, realmId, ...args);
   console.log("🟣 [WITH REFRESH] Initial response status:", resp.status);
@@ -243,4 +267,3 @@ export async function respond(resp: Response) {
 
   return Response.json(data);
 }
-
