@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -15,7 +15,6 @@ export default function InvoicesList() {
   const [selectedBill, setSelectedBill] = useState<any | null>(null)
   const { invoices, bills, isLoading } = useAppData()
 
-  // 🔧 Allow undefined and normalize inside
   const getStatusColor = (balance?: number, total?: number) => {
     const b = balance ?? 0
     const t = total ?? 0
@@ -32,6 +31,11 @@ export default function InvoicesList() {
     if (b === 0) return "Paid"
     if (b < t) return "Partial"
     return "Unpaid"
+  }
+
+  const formatDate = (value?: string) => {
+    if (!value) return "N/A"
+    return new Date(value).toLocaleDateString()
   }
 
   return (
@@ -52,6 +56,7 @@ export default function InvoicesList() {
             </TabsTrigger>
           </TabsList>
 
+          {/* Invoices Tab */}
           <TabsContent value="invoices" className="mt-4">
             {isLoading ? (
               <div className="flex justify-center p-8">
@@ -63,8 +68,8 @@ export default function InvoicesList() {
                   <p className="text-center text-muted-foreground py-8">No invoices found</p>
                 ) : (
                   invoices.map((invoice) => {
-                    const balance = invoice.Balance
-                    const total = invoice.TotalAmt
+                    const balance = invoice.Balance as number | undefined
+                    const total = invoice.TotalAmt as number | undefined
                     const status = getStatusText(balance, total)
 
                     return (
@@ -78,15 +83,21 @@ export default function InvoicesList() {
                             <span className="font-semibold">INV-{invoice.DocNumber}</span>
                             <Badge className={getStatusColor(balance, total)}>{status}</Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">{invoice.CustomerRef?.name}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Due: {new Date(invoice.DueDate).toLocaleDateString()}
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {invoice.CustomerRef?.name}
                           </p>
+                          {invoice.DueDate && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Due: {formatDate(invoice.DueDate)}
+                            </p>
+                          )}
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-lg">${(total ?? 0).toLocaleString()}</p>
+                          <p className="font-semibold text-lg">
+                            ${(total ?? 0).toLocaleString()}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(invoice.TxnDate).toLocaleDateString()}
+                            {formatDate(invoice.TxnDate)}
                           </p>
                         </div>
                       </div>
@@ -97,6 +108,7 @@ export default function InvoicesList() {
             )}
           </TabsContent>
 
+          {/* Bills Tab */}
           <TabsContent value="bills" className="mt-4">
             {isLoading ? (
               <div className="flex justify-center p-8">
@@ -108,8 +120,8 @@ export default function InvoicesList() {
                   <p className="text-center text-muted-foreground py-8">No bills found</p>
                 ) : (
                   bills.map((bill) => {
-                    const balance = bill.Balance
-                    const total = bill.TotalAmt
+                    const balance = bill.Balance as number | undefined
+                    const total = bill.TotalAmt as number | undefined
                     const status = getStatusText(balance, total)
 
                     return (
@@ -123,7 +135,9 @@ export default function InvoicesList() {
                             <span className="font-semibold">BILL-{bill.DocNumber || bill.Id}</span>
                             <Badge className={getStatusColor(balance, total)}>{status}</Badge>
                             {bill.Source === "OCR" && (
-                              <Badge variant="outline" className="text-xs">OCR</Badge>
+                              <Badge variant="outline" className="text-xs">
+                                OCR
+                              </Badge>
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground mt-1">
@@ -131,14 +145,16 @@ export default function InvoicesList() {
                           </p>
                           {bill.DueDate && (
                             <p className="text-xs text-muted-foreground mt-1">
-                              Due: {new Date(bill.DueDate).toLocaleDateString()}
+                              Due: {formatDate(bill.DueDate)}
                             </p>
                           )}
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-lg">${(total ?? 0).toLocaleString()}</p>
+                          <p className="font-semibold text-lg">
+                            ${(total ?? 0).toLocaleString()}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(bill.TxnDate).toLocaleDateString()}
+                            {formatDate(bill.TxnDate)}
                           </p>
                         </div>
                       </div>
@@ -161,9 +177,7 @@ export default function InvoicesList() {
                   <FileText className="h-5 w-5" />
                   Invoice INV-{selectedInvoice.DocNumber}
                 </DialogTitle>
-                <DialogDescription>
-                  Detailed information about this invoice
-                </DialogDescription>
+                <DialogDescription>Detailed information about this invoice</DialogDescription>
               </DialogHeader>
 
               <div className="space-y-6 mt-4">
@@ -171,21 +185,31 @@ export default function InvoicesList() {
                 <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                   <div>
                     <p className="text-sm text-muted-foreground">Status</p>
-                    <Badge className={getStatusColor(selectedInvoice.Balance, selectedInvoice.TotalAmt)}>
-                      {getStatusText(selectedInvoice.Balance, selectedInvoice.TotalAmt)}
+                    <Badge
+                      className={getStatusColor(
+                        selectedInvoice.Balance as number | undefined,
+                        selectedInvoice.TotalAmt as number | undefined
+                      )}
+                    >
+                      {getStatusText(
+                        selectedInvoice.Balance as number | undefined,
+                        selectedInvoice.TotalAmt as number | undefined
+                      )}
                     </Badge>
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Total Amount</p>
                     <p className="text-2xl font-bold">
-                      ${selectedInvoice.TotalAmt?.toLocaleString("en-US", {
+                      $
+                      {selectedInvoice.TotalAmt?.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
                     </p>
                     {selectedInvoice.Balance > 0 && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Balance: ${selectedInvoice.Balance?.toLocaleString("en-US", {
+                        Balance:{" "}
+                        {selectedInvoice.Balance?.toLocaleString("en-US", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -201,7 +225,9 @@ export default function InvoicesList() {
                       <User className="h-4 w-4" />
                       Customer
                     </div>
-                    <p className="font-medium">{selectedInvoice.CustomerRef?.name || "Unknown"}</p>
+                    <p className="font-medium">
+                      {selectedInvoice.CustomerRef?.name || "Unknown"}
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -210,7 +236,7 @@ export default function InvoicesList() {
                     </div>
                     <p className="font-medium">
                       {selectedInvoice.TxnDate
-                        ? new Date(selectedInvoice.TxnDate).toLocaleDateString()
+                        ? formatDate(selectedInvoice.TxnDate)
                         : "N/A"}
                     </p>
                   </div>
@@ -221,7 +247,7 @@ export default function InvoicesList() {
                         Due Date
                       </div>
                       <p className="font-medium">
-                        {new Date(selectedInvoice.DueDate).toLocaleDateString()}
+                        {formatDate(selectedInvoice.DueDate)}
                       </p>
                     </div>
                   )}
@@ -302,7 +328,8 @@ export default function InvoicesList() {
                     </div>
                     {selectedInvoice.SyncToken && (
                       <div>
-                        <span className="font-medium">Sync Token:</span> {selectedInvoice.SyncToken}
+                        <span className="font-medium">Sync Token:</span>{" "}
+                        {selectedInvoice.SyncToken}
                       </div>
                     )}
                   </div>
@@ -332,8 +359,16 @@ export default function InvoicesList() {
                   <div>
                     <p className="text-sm text-muted-foreground">Status</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge className={getStatusColor(selectedBill.Balance, selectedBill.TotalAmt)}>
-                        {getStatusText(selectedBill.Balance, selectedBill.TotalAmt)}
+                      <Badge
+                        className={getStatusColor(
+                          selectedBill.Balance as number | undefined,
+                          selectedBill.TotalAmt as number | undefined
+                        )}
+                      >
+                        {getStatusText(
+                          selectedBill.Balance as number | undefined,
+                          selectedBill.TotalAmt as number | undefined
+                        )}
                       </Badge>
                       {selectedBill.Source === "OCR" && (
                         <Badge variant="outline" className="text-xs">
@@ -345,14 +380,16 @@ export default function InvoicesList() {
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Total Amount</p>
                     <p className="text-2xl font-bold">
-                      ${selectedBill.TotalAmt?.toLocaleString("en-US", {
+                      $
+                      {selectedBill.TotalAmt?.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
                     </p>
                     {selectedBill.Balance > 0 && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Balance: ${selectedBill.Balance?.toLocaleString("en-US", {
+                        Balance:{" "}
+                        {selectedBill.Balance?.toLocaleString("en-US", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -378,9 +415,7 @@ export default function InvoicesList() {
                       Transaction Date
                     </div>
                     <p className="font-medium">
-                      {selectedBill.TxnDate
-                        ? new Date(selectedBill.TxnDate).toLocaleDateString()
-                        : "N/A"}
+                      {selectedBill.TxnDate ? formatDate(selectedBill.TxnDate) : "N/A"}
                     </p>
                   </div>
                   {selectedBill.DueDate && (
@@ -390,7 +425,7 @@ export default function InvoicesList() {
                         Due Date
                       </div>
                       <p className="font-medium">
-                        {new Date(selectedBill.DueDate).toLocaleDateString()}
+                        {formatDate(selectedBill.DueDate)}
                       </p>
                     </div>
                   )}
@@ -401,7 +436,8 @@ export default function InvoicesList() {
                         AP Account
                       </div>
                       <p className="font-medium">
-                        {selectedBill.APAccountRef.name || selectedBill.APAccountRef.value}
+                        {selectedBill.APAccountRef.name ||
+                          selectedBill.APAccountRef.value}
                       </p>
                     </div>
                   )}
@@ -459,7 +495,8 @@ export default function InvoicesList() {
                     </div>
                     {selectedBill.SyncToken && (
                       <div>
-                        <span className="font-medium">Sync Token:</span> {selectedBill.SyncToken}
+                        <span className="font-medium">Sync Token:</span>{" "}
+                        {selectedBill.SyncToken}
                       </div>
                     )}
                   </div>
