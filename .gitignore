@@ -45,7 +45,7 @@ __pycache__/
 venv/
 env/
 
-invoices/
-app/api/invoices/
+# invoices/
+# app/api/invoices/
 
 certificates/
