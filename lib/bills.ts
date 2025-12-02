@@ -108,7 +108,8 @@ export function buildQboBillFromInvoice(
     throw new Error("vendor_id is required to create a QuickBooks Bill");
   }
 
-  const lineItems = invoice.line_items.map((item) => ({
+  // Ensure we have at least one line item (QuickBooks requires Line parameter)
+  let lineItems = invoice.line_items.map((item) => ({
     DetailType: "AccountBasedExpenseLineDetail",
     Amount: parseFloat(item.amount.toString()),
     Description: item.description || "",
@@ -118,6 +119,23 @@ export function buildQboBillFromInvoice(
       },
     },
   }));
+
+  // If no line items, create a default one using the total
+  if (lineItems.length === 0) {
+    const totalAmount = invoice.total || invoice.subtotal || 0;
+    lineItems = [
+      {
+        DetailType: "AccountBasedExpenseLineDetail",
+        Amount: parseFloat(totalAmount.toString()),
+        Description: invoice.description || "Bill from OCR",
+        AccountBasedExpenseLineDetail: {
+          AccountRef: {
+            value: expenseAccountId,
+          },
+        },
+      },
+    ];
+  }
 
   const bill: Record<string, any> = {
     VendorRef: { value: vendorId },
@@ -136,15 +154,29 @@ export function buildQboBillFromInvoice(
     bill.DueDate = invoice.due_date;
   }
 
+  // Build PrivateNote but truncate to 4,000 characters (QuickBooks limit)
   const noteParts: string[] = [];
   if (invoice.source) {
     noteParts.push(`Source: ${invoice.source}`);
   }
   if (invoice.file_url) {
-    noteParts.push(`File: ${invoice.file_url}`);
+    // Don't include full base64 data URLs - just indicate file was uploaded
+    if (invoice.file_url.startsWith("data:")) {
+      noteParts.push(`File: [Uploaded via OCR]`);
+    } else {
+      // For regular URLs, truncate if too long
+      const fileNote = `File: ${invoice.file_url}`;
+      if (fileNote.length > 200) {
+        noteParts.push(`File: ${invoice.file_url.substring(0, 197)}...`);
+      } else {
+        noteParts.push(fileNote);
+      }
+    }
   }
   if (noteParts.length > 0) {
-    bill.PrivateNote = noteParts.join(" | ");
+    const fullNote = noteParts.join(" | ");
+    // Truncate to 4,000 characters max (QuickBooks limit)
+    bill.PrivateNote = fullNote.length > 4000 ? fullNote.substring(0, 3997) + "..." : fullNote;
   }
 
   return bill;

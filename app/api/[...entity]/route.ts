@@ -39,13 +39,32 @@ export async function GET(
     } else {
       // List entities
       const searchParams = request.nextUrl.searchParams;
-      const where = searchParams.get("where");
+      let where = searchParams.get("where");
       const orderby = searchParams.get("orderby");
       const start = parseInt(searchParams.get("start") || "1", 10);
       const max = parseInt(searchParams.get("max") || "100", 10);
 
       let sql = `select * from ${entity}`;
-      if (where) {
+      
+      // QuickBooks Purchase entity doesn't support EntityRef.value in WHERE clauses
+      // If this is a Purchase query with EntityRef.value, we'll fetch all and filter client-side
+      let needsClientSideFilter = false;
+      let entityRefFilter: { field: string; value: string } | null = null;
+      
+      if (where && entity === "Purchase" && where.includes("EntityRef.value")) {
+        // Extract the EntityRef.value filter for client-side filtering
+        const match = where.match(/EntityRef\.value\s*=\s*['"]([^'"]+)['"]/);
+        if (match) {
+          entityRefFilter = { field: "EntityRef.value", value: match[1] };
+          needsClientSideFilter = true;
+          // Remove EntityRef.value from WHERE clause
+          where = where.replace(/EntityRef\.value\s*=\s*['"][^'"]+['"]\s*(and|or)?/gi, "").trim();
+          // Clean up any trailing AND/OR
+          where = where.replace(/^(and|or)\s+/i, "").replace(/\s+(and|or)$/i, "");
+        }
+      }
+      
+      if (where && !needsClientSideFilter) {
         sql += ` where ${where}`;
       }
       if (orderby) {
@@ -54,6 +73,29 @@ export async function GET(
       sql += ` startposition ${start} maxresults ${max}`;
 
       const resp = await withRefresh(qboQuery, tokens, sql);
+      
+      // If we need client-side filtering, do it here
+      if (needsClientSideFilter && resp.ok) {
+        const data = await resp.json();
+        const queryResponse = data.QueryResponse || {};
+        const purchases = queryResponse.Purchase || [];
+        
+        // Filter by EntityRef.value client-side
+        const filteredPurchases = purchases.filter((purchase: any) => {
+          const entityRef = purchase.EntityRef;
+          return entityRef && entityRef.value === entityRefFilter!.value;
+        });
+        
+        return NextResponse.json({
+          ...data,
+          QueryResponse: {
+            ...queryResponse,
+            Purchase: filteredPurchases,
+            maxResults: filteredPurchases.length,
+          },
+        });
+      }
+      
       return respond(resp);
     }
   } catch (error: any) {

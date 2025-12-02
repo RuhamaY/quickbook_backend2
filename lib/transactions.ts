@@ -503,10 +503,14 @@ export async function buildQboPurchaseFromTransaction(
     purchase.TxnDate = transaction.date;
   }
 
+  // Add PrivateNote but ensure it doesn't exceed 4,000 characters (QuickBooks limit)
   if (transaction.reference_number) {
-    purchase.PrivateNote = `Reference: ${transaction.reference_number}`;
+    const note = `Reference: ${transaction.reference_number}`;
+    purchase.PrivateNote = note.length > 4000 ? note.substring(0, 3997) + "..." : note;
   } else if (transaction.description) {
-    purchase.PrivateNote = transaction.description;
+    purchase.PrivateNote = transaction.description.length > 4000 
+      ? transaction.description.substring(0, 3997) + "..." 
+      : transaction.description;
   }
 
   console.log(

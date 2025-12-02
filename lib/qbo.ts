@@ -159,7 +159,9 @@ export async function qboQuery(accessToken: string, realmId: string, sql: string
 
     console.log("🔵 [QBO QUERY] Response status:", response.status);
     if (!response.ok) {
-      const text = await response.text();
+      // Clone response before reading so the original can be used later
+      const clonedResp = response.clone();
+      const text = await clonedResp.text();
       console.error("❌ [QBO QUERY] Failed with status:", response.status);
       console.error("❌ [QBO QUERY] Response body:", text);
     } else {
@@ -253,11 +255,15 @@ export async function withRefresh(
 }
 
 export async function respond(resp: Response) {
+  // Clone the response so we can read the body multiple times if needed
+  const clonedResp = resp.clone();
   let data: any;
   try {
-    data = await resp.json();
+    data = await clonedResp.json();
   } catch (error) {
-    const text = await resp.text();
+    // If JSON parsing fails, try reading as text
+    const textResp = resp.clone();
+    const text = await textResp.text();
     throw new Error(`Response parsing failed: ${resp.status} ${text}`);
   }
 
