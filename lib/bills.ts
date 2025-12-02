@@ -108,6 +108,12 @@ export function buildQboBillFromInvoice(
     throw new Error("vendor_id is required to create a QuickBooks Bill");
   }
 
+  // Safely read an optional description from invoice without requiring it on InvoiceIn
+  const invoiceDescription =
+    (invoice as any).description && typeof (invoice as any).description === "string"
+      ? (invoice as any).description
+      : undefined;
+
   // Ensure we have at least one line item (QuickBooks requires Line parameter)
   let lineItems = invoice.line_items.map((item) => ({
     DetailType: "AccountBasedExpenseLineDetail",
@@ -127,7 +133,7 @@ export function buildQboBillFromInvoice(
       {
         DetailType: "AccountBasedExpenseLineDetail",
         Amount: parseFloat(totalAmount.toString()),
-        Description: invoice.description || "Bill from OCR",
+        Description: invoiceDescription || "Bill from OCR",
         AccountBasedExpenseLineDetail: {
           AccountRef: {
             value: expenseAccountId,
@@ -181,4 +187,3 @@ export function buildQboBillFromInvoice(
 
   return bill;
 }
-
