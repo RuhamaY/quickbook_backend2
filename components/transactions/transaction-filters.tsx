@@ -27,11 +27,18 @@ export default function TransactionFilters({ filters, onFiltersChange }: Transac
   const [searchTerm, setSearchTerm] = useState(filters.searchQuery)
   const debouncedSearch = useDebounce(searchTerm, 500)
 
-  const categories = Array.from(new Set(transactions.map((t) => t.AccountRef?.name || "Uncategorized"))).filter(Boolean)
-  const paymentTypes = Array.from(new Set(transactions.map((t) => t.PaymentType))).filter(Boolean)
+  const categories = Array.from(
+    new Set(transactions.map((t) => t.AccountRef?.name || "Uncategorized")),
+  ).filter(Boolean)
+
+  // 🔧 Make paymentTypes a string[] instead of (string | undefined)[]
+  const paymentTypes = Array.from(new Set(transactions.map((t) => t.PaymentType))).filter(
+    (value): value is string => Boolean(value),
+  )
 
   useEffect(() => {
     onFiltersChange({ ...filters, searchQuery: debouncedSearch })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch])
 
   const handleCategoryToggle = (category: string) => {
@@ -122,7 +129,10 @@ export default function TransactionFilters({ filters, onFiltersChange }: Transac
                 className="w-20 h-8 text-sm"
                 value={filters.minAmount ?? ""}
                 onChange={(e) =>
-                  onFiltersChange({ ...filters, minAmount: e.target.value ? Number.parseFloat(e.target.value) : null })
+                  onFiltersChange({
+                    ...filters,
+                    minAmount: e.target.value ? Number.parseFloat(e.target.value) : null,
+                  })
                 }
               />
               <span className="text-muted-foreground text-sm">to</span>
@@ -132,7 +142,10 @@ export default function TransactionFilters({ filters, onFiltersChange }: Transac
                 className="w-20 h-8 text-sm"
                 value={filters.maxAmount ?? ""}
                 onChange={(e) =>
-                  onFiltersChange({ ...filters, maxAmount: e.target.value ? Number.parseFloat(e.target.value) : null })
+                  onFiltersChange({
+                    ...filters,
+                    maxAmount: e.target.value ? Number.parseFloat(e.target.value) : null,
+                  })
                 }
               />
             </div>
