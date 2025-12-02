@@ -15,15 +15,22 @@ export default function InvoicesList() {
   const [selectedBill, setSelectedBill] = useState<any | null>(null)
   const { invoices, bills, isLoading } = useAppData()
 
-  const getStatusColor = (balance: number, total: number) => {
-    if (balance === 0) return "bg-green-500/10 text-green-500 hover:bg-green-500/20"
-    if (balance < total) return "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20"
+  // 🔧 Allow undefined and normalize inside
+  const getStatusColor = (balance?: number, total?: number) => {
+    const b = balance ?? 0
+    const t = total ?? 0
+
+    if (b === 0) return "bg-green-500/10 text-green-500 hover:bg-green-500/20"
+    if (b < t) return "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20"
     return "bg-red-500/10 text-red-500 hover:bg-red-500/20"
   }
 
-  const getStatusText = (balance: number, total: number) => {
-    if (balance === 0) return "Paid"
-    if (balance < total) return "Partial"
+  const getStatusText = (balance?: number, total?: number) => {
+    const b = balance ?? 0
+    const t = total ?? 0
+
+    if (b === 0) return "Paid"
+    if (b < t) return "Partial"
     return "Unpaid"
   }
 
@@ -77,7 +84,7 @@ export default function InvoicesList() {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-lg">${total.toLocaleString()}</p>
+                          <p className="font-semibold text-lg">${(total ?? 0).toLocaleString()}</p>
                           <p className="text-xs text-muted-foreground">
                             {new Date(invoice.TxnDate).toLocaleDateString()}
                           </p>
@@ -119,16 +126,20 @@ export default function InvoicesList() {
                               <Badge variant="outline" className="text-xs">OCR</Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">{bill.VendorRef?.name || "Unknown Vendor"}</p>
-                          {bill.DueDate && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Due: {new Date(bill.DueDate).toLocaleDateString()}
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {bill.VendorRef?.name || "Unknown Vendor"}
                           </p>
+                          {bill.DueDate && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Due: {new Date(bill.DueDate).toLocaleDateString()}
+                            </p>
                           )}
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-lg">${total.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(bill.TxnDate).toLocaleDateString()}</p>
+                          <p className="font-semibold text-lg">${(total ?? 0).toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(bill.TxnDate).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
                     )
@@ -167,11 +178,17 @@ export default function InvoicesList() {
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Total Amount</p>
                     <p className="text-2xl font-bold">
-                      ${selectedInvoice.TotalAmt?.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ${selectedInvoice.TotalAmt?.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                     </p>
                     {selectedInvoice.Balance > 0 && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Balance: ${selectedInvoice.Balance?.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Balance: ${selectedInvoice.Balance?.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </p>
                     )}
                   </div>
@@ -192,7 +209,9 @@ export default function InvoicesList() {
                       Transaction Date
                     </div>
                     <p className="font-medium">
-                      {selectedInvoice.TxnDate ? new Date(selectedInvoice.TxnDate).toLocaleDateString() : "N/A"}
+                      {selectedInvoice.TxnDate
+                        ? new Date(selectedInvoice.TxnDate).toLocaleDateString()
+                        : "N/A"}
                     </p>
                   </div>
                   {selectedInvoice.DueDate && (
@@ -201,7 +220,9 @@ export default function InvoicesList() {
                         <Calendar className="h-4 w-4" />
                         Due Date
                       </div>
-                      <p className="font-medium">{new Date(selectedInvoice.DueDate).toLocaleDateString()}</p>
+                      <p className="font-medium">
+                        {new Date(selectedInvoice.DueDate).toLocaleDateString()}
+                      </p>
                     </div>
                   )}
                   {selectedInvoice.CurrencyRef && (
@@ -210,7 +231,10 @@ export default function InvoicesList() {
                         <DollarSign className="h-4 w-4" />
                         Currency
                       </div>
-                      <p className="font-medium">{selectedInvoice.CurrencyRef.name || selectedInvoice.CurrencyRef.value}</p>
+                      <p className="font-medium">
+                        {selectedInvoice.CurrencyRef.name ||
+                          selectedInvoice.CurrencyRef.value}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -233,15 +257,25 @@ export default function InvoicesList() {
                           <TableRow key={index}>
                             <TableCell>{line.Description || "N/A"}</TableCell>
                             <TableCell>
-                              {line.SalesItemLineDetail?.Qty || line.Any?.find((a: any) => a.name === "Quantity")?.value || "N/A"}
+                              {line.SalesItemLineDetail?.Qty ||
+                                line.Any?.find((a: any) => a.name === "Quantity")?.value ||
+                                "N/A"}
                             </TableCell>
                             <TableCell className="text-right">
                               {line.SalesItemLineDetail?.UnitPrice
-                                ? `$${parseFloat(line.SalesItemLineDetail.UnitPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                ? `$${parseFloat(
+                                    line.SalesItemLineDetail.UnitPrice
+                                  ).toLocaleString("en-US", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}`
                                 : "N/A"}
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              ${parseFloat(line.Amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ${parseFloat(line.Amount || 0).toLocaleString("en-US", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -289,9 +323,7 @@ export default function InvoicesList() {
                   <Receipt className="h-5 w-5" />
                   Bill BILL-{selectedBill.DocNumber || selectedBill.Id}
                 </DialogTitle>
-                <DialogDescription>
-                  Detailed information about this bill
-                </DialogDescription>
+                <DialogDescription>Detailed information about this bill</DialogDescription>
               </DialogHeader>
 
               <div className="space-y-6 mt-4">
@@ -304,18 +336,26 @@ export default function InvoicesList() {
                         {getStatusText(selectedBill.Balance, selectedBill.TotalAmt)}
                       </Badge>
                       {selectedBill.Source === "OCR" && (
-                        <Badge variant="outline" className="text-xs">OCR</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          OCR
+                        </Badge>
                       )}
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Total Amount</p>
                     <p className="text-2xl font-bold">
-                      ${selectedBill.TotalAmt?.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ${selectedBill.TotalAmt?.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                     </p>
                     {selectedBill.Balance > 0 && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Balance: ${selectedBill.Balance?.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Balance: ${selectedBill.Balance?.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </p>
                     )}
                   </div>
@@ -328,7 +368,9 @@ export default function InvoicesList() {
                       <Building2 className="h-4 w-4" />
                       Vendor
                     </div>
-                    <p className="font-medium">{selectedBill.VendorRef?.name || "Unknown Vendor"}</p>
+                    <p className="font-medium">
+                      {selectedBill.VendorRef?.name || "Unknown Vendor"}
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -336,7 +378,9 @@ export default function InvoicesList() {
                       Transaction Date
                     </div>
                     <p className="font-medium">
-                      {selectedBill.TxnDate ? new Date(selectedBill.TxnDate).toLocaleDateString() : "N/A"}
+                      {selectedBill.TxnDate
+                        ? new Date(selectedBill.TxnDate).toLocaleDateString()
+                        : "N/A"}
                     </p>
                   </div>
                   {selectedBill.DueDate && (
@@ -345,7 +389,9 @@ export default function InvoicesList() {
                         <Calendar className="h-4 w-4" />
                         Due Date
                       </div>
-                      <p className="font-medium">{new Date(selectedBill.DueDate).toLocaleDateString()}</p>
+                      <p className="font-medium">
+                        {new Date(selectedBill.DueDate).toLocaleDateString()}
+                      </p>
                     </div>
                   )}
                   {selectedBill.APAccountRef && (
@@ -354,7 +400,9 @@ export default function InvoicesList() {
                         <DollarSign className="h-4 w-4" />
                         AP Account
                       </div>
-                      <p className="font-medium">{selectedBill.APAccountRef.name || selectedBill.APAccountRef.value}</p>
+                      <p className="font-medium">
+                        {selectedBill.APAccountRef.name || selectedBill.APAccountRef.value}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -376,12 +424,15 @@ export default function InvoicesList() {
                           <TableRow key={index}>
                             <TableCell>{line.Description || "N/A"}</TableCell>
                             <TableCell>
-                              {line.AccountBasedExpenseLineDetail?.AccountRef?.name || 
-                               line.ItemBasedExpenseLineDetail?.ItemRef?.name || 
-                               "N/A"}
+                              {line.AccountBasedExpenseLineDetail?.AccountRef?.name ||
+                                line.ItemBasedExpenseLineDetail?.ItemRef?.name ||
+                                "N/A"}
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              ${parseFloat(line.Amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ${parseFloat(line.Amount || 0).toLocaleString("en-US", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
                             </TableCell>
                           </TableRow>
                         ))}
