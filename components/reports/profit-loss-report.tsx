@@ -4,7 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Download, TrendingUp, TrendingDown, DollarSign } from "lucide-react"
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts"
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from "recharts"
+import type { PieLabelRenderProps } from "recharts"
 import type { ReportResponse } from "@/lib/api-client"
 
 interface ProfitLossReportProps {
@@ -118,7 +126,8 @@ export default function ProfitLossReport({ data, isLoading }: ProfitLossReportPr
             <div>
               <CardTitle className="text-2xl">{formatReportType(report_type)}</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                {new Date(period.start_date).toLocaleDateString()} - {new Date(period.end_date).toLocaleDateString()}
+                {new Date(period.start_date).toLocaleDateString()} -{" "}
+                {new Date(period.end_date).toLocaleDateString()}
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={handleDownload}>
@@ -184,7 +193,9 @@ export default function ProfitLossReport({ data, isLoading }: ProfitLossReportPr
                 }`}
               >
                 <DollarSign
-                  className={`h-6 w-6 ${(totals.net || 0) >= 0 ? "text-green-600" : "text-red-600"}`}
+                  className={`h-6 w-6 ${
+                    (totals.net || 0) >= 0 ? "text-green-600" : "text-red-600"
+                  }`}
                 />
               </div>
             </div>
@@ -203,36 +214,41 @@ export default function ProfitLossReport({ data, isLoading }: ProfitLossReportPr
             </CardHeader>
             <CardContent>
               {chartData.length > 0 ? (
-                <>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={chartData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent = 0 }: { name: string; percent?: number }) => `${name}: ${(percent! * 100).toFixed(0)}%`}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {chartData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(value: number) => formatCurrency(value)}
-                        contentStyle={{
-                          borderRadius: "8px",
-                          border: "1px solid hsl(var(--border))",
-                        }}
-                      />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }: PieLabelRenderProps) =>
+                        `${name ?? "Other"}: ${((percent ?? 0) * 100).toFixed(0)}%`
+                      }
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {chartData.map((_, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "1px solid hsl(var(--border))",
+                      }}
+                    />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
               ) : (
-                <p className="text-center text-muted-foreground py-8">No expense data available</p>
+                <p className="text-center text-muted-foreground py-8">
+                  No expense data available
+                </p>
               )}
             </CardContent>
           </Card>
@@ -248,20 +264,27 @@ export default function ProfitLossReport({ data, isLoading }: ProfitLossReportPr
                 {top_expense_categories
                   .filter((cat) => cat.amount > 0)
                   .map((category, index) => {
-                    const percentage = totalExpenses > 0 ? (category.amount / totalExpenses) * 100 : 0
+                    const percentage =
+                      totalExpenses > 0 ? (category.amount / totalExpenses) * 100 : 0
                     return (
                       <div key={category.name} className="space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div
                               className="h-3 w-3 rounded-full"
-                              style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                              style={{
+                                backgroundColor: COLORS[index % COLORS.length],
+                              }}
                             />
                             <span className="font-medium">{category.name}</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="text-sm text-muted-foreground">{percentage.toFixed(1)}%</span>
-                            <span className="font-semibold">{formatCurrency(category.amount)}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {percentage.toFixed(1)}%
+                            </span>
+                            <span className="font-semibold">
+                              {formatCurrency(category.amount)}
+                            </span>
                           </div>
                         </div>
                         <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -269,7 +292,8 @@ export default function ProfitLossReport({ data, isLoading }: ProfitLossReportPr
                             className="h-full transition-all"
                             style={{
                               width: `${percentage}%`,
-                              backgroundColor: COLORS[index % COLORS.length],
+                              backgroundColor:
+                                COLORS[index % COLORS.length],
                             }}
                           />
                         </div>
@@ -277,7 +301,9 @@ export default function ProfitLossReport({ data, isLoading }: ProfitLossReportPr
                     )
                   })}
                 {top_expense_categories.filter((cat) => cat.amount > 0).length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">No expense categories found</p>
+                  <p className="text-center text-muted-foreground py-8">
+                    No expense categories found
+                  </p>
                 )}
               </div>
             </CardContent>
