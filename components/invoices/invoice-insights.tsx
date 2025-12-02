@@ -22,17 +22,35 @@ export default function InvoiceInsights() {
   }
 
   // Calculate insights from actual data
-  const totalReceivables = invoices.reduce((sum, inv) => sum + (inv.Balance || 0), 0)
-  const totalPayables = bills.reduce((sum, bill) => sum + (bill.Balance || 0), 0)
+  const totalReceivables = invoices.reduce(
+    (sum, inv) => sum + (inv.Balance ?? 0),
+    0
+  )
 
-  const overdueInvoices = invoices.filter((inv) => inv.Balance > 0 && new Date(inv.DueDate) < new Date()).length
+  const totalPayables = bills.reduce(
+    (sum, bill) => sum + (bill.Balance ?? 0),
+    0
+  )
+
+  const overdueInvoices = invoices.filter((inv) => {
+    const balance = inv.Balance ?? 0
+    if (balance <= 0) return false
+    if (!inv.DueDate) return false
+
+    return new Date(inv.DueDate) < new Date()
+  }).length
 
   const upcomingBills = bills.filter((bill) => {
+    const balance = bill.Balance ?? 0
+    if (balance <= 0) return false
+    if (!bill.DueDate) return false
+
     const dueDate = new Date(bill.DueDate)
     const today = new Date()
     const nextWeek = new Date()
     nextWeek.setDate(today.getDate() + 7)
-    return bill.Balance > 0 && dueDate >= today && dueDate <= nextWeek
+
+    return dueDate >= today && dueDate <= nextWeek
   }).length
 
   return (
@@ -77,7 +95,9 @@ export default function InvoiceInsights() {
                 <TrendingUp className="h-4 w-4 text-green-500" />
                 Net Cash Position
               </div>
-              <div className="text-2xl font-bold">${(totalReceivables - totalPayables).toLocaleString()}</div>
+              <div className="text-2xl font-bold">
+                ${(totalReceivables - totalPayables).toLocaleString()}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Receivables: ${totalReceivables.toLocaleString()} • Payables: ${totalPayables.toLocaleString()}
               </p>
