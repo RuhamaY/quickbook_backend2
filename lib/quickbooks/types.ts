@@ -24,8 +24,10 @@ export interface QuickBooksEntity {
 
 export interface QueryResponse<T = any> {
   QueryResponse: {
-    [entityType: string]: T[]
+    // Metadata from QuickBooks
     startPosition?: number
     maxResults?: number
+    // Entity collections or other fields – keep this loose for flexibility
+    [entityType: string]: any
   }
 }
