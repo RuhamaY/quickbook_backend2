@@ -69,7 +69,8 @@ export default function TransactionsList({ filters }: TransactionsListProps) {
 
     // Payment type filter
     if (filters.paymentTypes.length > 0) {
-      if (!filters.paymentTypes.includes(t.PaymentType)) return false
+      const paymentType = t.PaymentType
+      if (!paymentType || !filters.paymentTypes.includes(paymentType)) return false
     }
 
     // Amount range filter
@@ -115,25 +116,30 @@ export default function TransactionsList({ filters }: TransactionsListProps) {
             ) : (
               filteredTransactions.map((transaction) => {
                 const category = transaction.AccountRef?.name || "Uncategorized"
-                const isUncategorized = !category || category === "Uncategorized" || category === "Unorganized"
-                
+                const isUncategorized =
+                  !category || category === "Uncategorized" || category === "Unorganized"
+
                 return (
-                <TableRow key={transaction.Id}>
-                  <TableCell>{transaction.TxnDate}</TableCell>
-                  <TableCell className="font-medium">{transaction.EntityRef?.name || "Unknown Vendor"}</TableCell>
-                  <TableCell>{transaction.PrivateNote || "No description"}</TableCell>
-                  <TableCell>
+                  <TableRow key={transaction.Id}>
+                    <TableCell>{transaction.TxnDate}</TableCell>
+                    <TableCell className="font-medium">
+                      {transaction.EntityRef?.name || "Unknown Vendor"}
+                    </TableCell>
+                    <TableCell>{transaction.PrivateNote || "No description"}</TableCell>
+                    <TableCell>
                       <Badge variant={isUncategorized ? "outline" : "secondary"}>
                         {category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{transaction.PaymentType}</TableCell>
-                  <TableCell className="text-right font-medium text-red-500">
-                    {new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    }).format(transaction.TotalAmt || 0)}
-                  </TableCell>
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {transaction.PaymentType}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-red-500">
+                      {new Intl.NumberFormat("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      }).format(transaction.TotalAmt || 0)}
+                    </TableCell>
                     <TableCell className="text-right">
                       {isUncategorized ? (
                         <Button
@@ -152,7 +158,7 @@ export default function TransactionsList({ filters }: TransactionsListProps) {
                         <span className="text-muted-foreground text-xs">Categorized</span>
                       )}
                     </TableCell>
-                </TableRow>
+                  </TableRow>
                 )
               })
             )}
